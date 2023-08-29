@@ -103,8 +103,8 @@ def extract_values(match):
         return None, None
     
 def fileio_seqrw_test():
-    if os.path.exists("fileio_run_results") is False:
-        subprocess.run("mkdir fileio_run_results", capture_output=True, text=True, shell=True)
+    if os.path.exists("fileio_seqrw_results") is False:
+        subprocess.run("mkdir fileio_seqrw_results", capture_output=True, text=True, shell=True)
     subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode=seqrd prepare", capture_output=True, text=True, shell=True)
     for i in range(10):
         read_iops_result, write_iops_result, fsync_iops_result = 0, 0, 0
@@ -114,15 +114,17 @@ def fileio_seqrw_test():
                 oper = "seqwr"
             else:
                 oper = "seqrd"
-            tmp_file_name = "mem_{}_run_tmp{}".format(oper, i+1)
-            subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode={} --time=60 run > ./mem_run_results/{}".format(oper, tmp_file_name), capture_output=True, text=True, shell=True)
+            tmp_file_name = "fileio_{}_run_tmp{}".format(oper, i+1)
+            subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode={} --time=60 run > ./fileio_seqrw_results/{}".format(oper, tmp_file_name), capture_output=True, text=True, shell=True)
             
-            tmp_file_path = "./fileio_run_results/{}".format(tmp_file_name)
+            tmp_file_path = "./fileio_seqrw_results/{}".format(tmp_file_name)
             with open(tmp_file_path, "r") as file:
                 data = file.read()
 
             read_match = re.search(r'read:\s+IOPS=([\d.]+)\s+([\d.]+)\s+MiB/s', data)
+            # read_match = re.search(r'read:\s+IOPS=(\d+\.\d+)\s+(\d+\.\d+)\s+MiB/s\s+\(\d+\.\d+\s+MB/s\)', data)
             write_match = re.search(r'write:\s+IOPS=([\d.]+)\s+([\d.]+)\s+MiB/s', data)
+            # write_match = re.search(r'write:\s+IOPS=(\d+\.\d+)\s+(\d+\.\d+)\s+MiB/s\s+\(\d+\.\d+\s+MB/s\)', data)
             fsync_match = re.search(r'fsync:\s+IOPS=([\d.]+)', data)
 
             read_iops, read_mbps = extract_values(read_match)
@@ -155,21 +157,73 @@ def fileio_seqrw_test():
         sheet[f"C{next_row}"] = write_iops_result
         sheet[f"D{next_row}"] = write_mbps_result
         sheet[f"E{next_row}"] = fsync_iops_result
+        sheet[f"F{next_row}"] = "seqrw"
+        arc = subprocess.check_output("uname -m", shell=True)
+        sheet[f"G{next_row}"] = arc.decode('utf-8').strip()
+
+        wb.save("fileio_test_result.xlsx")
+
+        print("Test fileio_seqrw no.{} has already done.".format(i+1))
+
+    subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode=seqrd cleanup", capture_output=True, text=True, shell=True)
+
+def fileio_rndrw_test():
+    if os.path.exists("fileio_rndrw_results") is False:
+        subprocess.run("mkdir fileio_rndrw_results", capture_output=True, text=True, shell=True)
+    subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode=rndrw prepare", capture_output=True, text=True, shell=True)
+    for i in range(10):
+        oper = "rndrw"
+        tmp_file_name = "fileio_{}_run_tmp{}".format(oper, i+1)
+        subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode={} --time=60 run > ./fileio_rndrw_results/{}".format(oper, tmp_file_name), capture_output=True, text=True, shell=True)
+        
+        tmp_file_path = "./fileio_rndrw_results/{}".format(tmp_file_name)
+        with open(tmp_file_path, "r") as file:
+            data = file.read()
+
+        read_match = re.search(r'read:\s+IOPS=([\d.]+)\s+([\d.]+)\s+MiB/s', data)
+        write_match = re.search(r'write:\s+IOPS=([\d.]+)\s+([\d.]+)\s+MiB/s', data)
+        # read_match = re.search(r'read:\s+IOPS=(\d+\.\d+)\s+(\d+\.\d+)\s+MiB/s\s+\(\d+\.\d+\s+MB/s\)', data)
+        # write_match = re.search(r'write:\s+IOPS=(\d+\.\d+)\s+(\d+\.\d+)\s+MiB/s\s+\(\d+\.\d+\s+MB/s\)', data)
+        fsync_match = re.search(r'fsync:\s+IOPS=([\d.]+)', data)
+
+        read_iops, read_mbps = extract_values(read_match)
+        write_iops, write_mbps = extract_values(write_match)
+        fsync_iops = float(fsync_match.group(1))
+
+        try:
+            wb = load_workbook("fileio_test_result.xlsx")
+        except FileNotFoundError:
+            wb = Workbook()
+
+        sheet = wb.active
+        sheet["A1"] = "read_iops"
+        sheet["B1"] = "read_MiBps"
+        sheet["C1"] = "write_iops"
+        sheet["D1"] = "write_MiBps"
+        sheet["E1"] = "fsync_iops"
+        sheet["F1"] = "operation"
+        sheet["G1"] = "architecture"
+
+        next_row = sheet.max_row + 1
+        sheet[f"A{next_row}"] = read_iops
+        sheet[f"B{next_row}"] = read_mbps
+        sheet[f"C{next_row}"] = write_iops
+        sheet[f"D{next_row}"] = write_mbps
+        sheet[f"E{next_row}"] = fsync_iops
         sheet[f"F{next_row}"] = oper
         arc = subprocess.check_output("uname -m", shell=True)
         sheet[f"G{next_row}"] = arc.decode('utf-8').strip()
 
         wb.save("fileio_test_result.xlsx")
 
-        print("Test no.{} has already done..".format(i+1))
+        print("Test fileio_rndrw no.{} has already done..".format(i+1))
 
-    subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode=seqrd cleanup", capture_output=True, text=True, shell=True)
+    subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode=rndrw cleanup", capture_output=True, text=True, shell=True)
 
-def fileio_rndrw_test():
-    return
 
 def fileio_test():
-    return
+    fileio_seqrw_test()
+    fileio_rndrw_test()
 
 
 def main():
@@ -180,7 +234,7 @@ def main():
     test_dict = {
         "cpu": cpu_test,
         "mem": mem_test,
-        "fileio": fileio_seqrw_test
+        "fileio": fileio_test
     }
     
     test_func = test_dict.get(args[1], None)
