@@ -105,6 +105,7 @@ def extract_values(match):
 def fileio_seqrw_test():
     if os.path.exists("fileio_run_results") is False:
         subprocess.run("mkdir fileio_run_results", capture_output=True, text=True, shell=True)
+    subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode=seqrd prepare", capture_output=True, text=True, shell=True)
     for i in range(10):
         read_iops_result, write_iops_result, fsync_iops_result = 0, 0, 0
         read_mbps_result, write_mbps_result = 0, 0
@@ -114,9 +115,9 @@ def fileio_seqrw_test():
             else:
                 oper = "seqrd"
             tmp_file_name = "mem_{}_run_tmp{}".format(oper, i+1)
-            subprocess.run("sysbench memory --threads=1 --memory-oper=read --time=60 run > ./mem_run_results/{}".format(tmp_file_name), capture_output=True, text=True, shell=True)
+            subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode={} --time=60 run > ./mem_run_results/{}".format(oper, tmp_file_name), capture_output=True, text=True, shell=True)
             
-            tmp_file_path = "./mem_run_results/{}".format(tmp_file_name)
+            tmp_file_path = "./fileio_run_results/{}".format(tmp_file_name)
             with open(tmp_file_path, "r") as file:
                 data = file.read()
 
@@ -135,7 +136,7 @@ def fileio_seqrw_test():
             write_mbps_result = max(write_mbps_result, write_mbps)
 
         try:
-            wb = load_workbook("filio_test_result.xlsx")
+            wb = load_workbook("fileio_test_result.xlsx")
         except FileNotFoundError:
             wb = Workbook()
 
@@ -162,54 +163,13 @@ def fileio_seqrw_test():
 
         print("Test no.{} has already done..".format(i+1))
 
+    subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode=seqrd cleanup", capture_output=True, text=True, shell=True)
 
+def fileio_rndrw_test():
+    return
 
 def fileio_test():
-    if os.path.exists("fileio_run_results") is False:
-        subprocess.run("mkdir fileio_run_results", capture_output=True, text=True, shell=True)
-    for i in range(2):
-        # 内存读性能和写性能都测一遍
-        if i == 0:
-            for j in range(10)
-        else:
-
-
-        tmp_file_name = "mem_{}_run_tmp{}".format(oper, i+1)
-        subprocess.run("sysbench memory --threads=1 --memory-oper=read --time=60 run > ./mem_run_results/{}".format(tmp_file_name), capture_output=True, text=True, shell=True)
-        
-        tmp_file_path = "./mem_run_results/{}".format(tmp_file_name)
-        with open(tmp_file_path, "r") as file:
-            data = file.read()
-
-        pattern1 = r'(\d+\.\d{2}) MiB/sec'
-        pattern2 = r"events/s \(eps\):\s+(\d+\.\d+)"
-        result_MiB_per_sec = re.search(pattern1, data)
-        result_iterations_per_sec = re.search(pattern2, data)
-
-        if result_MiB_per_sec and result_iterations_per_sec:
-
-            print("Test no.{} has already done. The {}_result is {} MiB/sec.".format(i+1, oper, float(result_MiB_per_sec.group(1))))
-
-            try:
-                wb = load_workbook("mem_test_result.xlsx")
-            except FileNotFoundError:
-                wb = Workbook()
-
-            sheet = wb.active
-            sheet["A1"] = "MiB/sec"
-            sheet["B1"] = "events/sec"
-            sheet["C1"] = "thread_number"
-            sheet["D1"] = "operation"
-            sheet["E1"] = "architecture"
-            next_row = sheet.max_row + 1
-            sheet[f"A{next_row}"] = float(result_MiB_per_sec.group(1))
-            sheet[f"B{next_row}"] = float(result_iterations_per_sec.group(1))
-            sheet[f"C{next_row}"] = 1
-            sheet[f"D{next_row}"] = oper
-            arc = subprocess.check_output("uname -m", shell=True)
-            sheet[f"E{next_row}"] = arc.decode('utf-8').strip()
-
-            wb.save("mem_test_result.xlsx")
+    return
 
 
 def main():
@@ -220,7 +180,7 @@ def main():
     test_dict = {
         "cpu": cpu_test,
         "mem": mem_test,
-        "fileio": fileio_test
+        "fileio": fileio_seqrw_test
     }
     
     test_func = test_dict.get(args[1], None)
