@@ -11,5 +11,6 @@ yum install -y sysbench
 
 使用方法：
 ```
-python3 benchmark.py cpu/mem
+python3 benchmark.py cpu/mem/fileio
 ```
+运行完成后，会在当前目录下创建result目录，里面存放了每次运行的结果文件。并且在当前目录下生成测试结果的excel文件
