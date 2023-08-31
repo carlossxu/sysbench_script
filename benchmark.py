@@ -11,7 +11,7 @@ def cpu_test():
 
         tmp_file_name = "cpu_run_tmp{}".format(i+1)
 
-        subprocess.run("sysbench cpu --threads=1 --time=60 run > ./cpu_run_results/{}".format(tmp_file_name), capture_output=True, text=True, shell=True)
+        subprocess.run("taskset -c 0 sysbench cpu --threads=1 --time=60 run > ./cpu_run_results/{}".format(tmp_file_name), capture_output=True, text=True, shell=True)
 
         tmp_file_path = "./cpu_run_results/{}".format(tmp_file_name)
         with open(tmp_file_path, "r") as file:
@@ -57,7 +57,7 @@ def mem_test():
             oper = "write"
 
         tmp_file_name = "mem_{}_run_tmp{}".format(oper, i+1)
-        subprocess.run("sysbench memory --threads=1 --memory-oper=read --time=60 run > ./mem_run_results/{}".format(tmp_file_name), capture_output=True, text=True, shell=True)
+        subprocess.run("taskset -c 0 sysbench memory --threads=1 --memory-oper=read --time=60 run > ./mem_run_results/{}".format(tmp_file_name), capture_output=True, text=True, shell=True)
         
         tmp_file_path = "./mem_run_results/{}".format(tmp_file_name)
         with open(tmp_file_path, "r") as file:
@@ -105,7 +105,7 @@ def extract_values(match):
 def fileio_seqrw_test():
     if os.path.exists("fileio_seqrw_results") is False:
         subprocess.run("mkdir fileio_seqrw_results", capture_output=True, text=True, shell=True)
-    subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode=seqrd prepare", capture_output=True, text=True, shell=True)
+    subprocess.run("sysbench fileio --threads=1 --file-total-size=8G --file-test-mode=seqrd prepare", capture_output=True, text=True, shell=True)
     for i in range(10):
         read_iops_result, write_iops_result, fsync_iops_result = 0, 0, 0
         read_mbps_result, write_mbps_result = 0, 0
@@ -115,7 +115,7 @@ def fileio_seqrw_test():
             else:
                 oper = "seqrd"
             tmp_file_name = "fileio_{}_run_tmp{}".format(oper, i+1)
-            subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode={} --time=60 run > ./fileio_seqrw_results/{}".format(oper, tmp_file_name), capture_output=True, text=True, shell=True)
+            subprocess.run("taskset -c 0 sysbench fileio --threads=1 --file-total-size=8G --file-test-mode={} --time=60 run > ./fileio_seqrw_results/{}".format(oper, tmp_file_name), capture_output=True, text=True, shell=True)
             
             tmp_file_path = "./fileio_seqrw_results/{}".format(tmp_file_name)
             with open(tmp_file_path, "r") as file:
@@ -165,16 +165,16 @@ def fileio_seqrw_test():
 
         print("Test fileio_seqrw no.{} has already done.".format(i+1))
 
-    subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode=seqrd cleanup", capture_output=True, text=True, shell=True)
+    subprocess.run("sysbench fileio --threads=1 --file-total-size=8G --file-test-mode=seqrd cleanup", capture_output=True, text=True, shell=True)
 
 def fileio_rndrw_test():
     if os.path.exists("fileio_rndrw_results") is False:
         subprocess.run("mkdir fileio_rndrw_results", capture_output=True, text=True, shell=True)
-    subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode=rndrw prepare", capture_output=True, text=True, shell=True)
+    subprocess.run("sysbench fileio --threads=1 --file-total-size=8G --file-test-mode=rndrw prepare", capture_output=True, text=True, shell=True)
     for i in range(10):
         oper = "rndrw"
         tmp_file_name = "fileio_{}_run_tmp{}".format(oper, i+1)
-        subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode={} --time=60 run > ./fileio_rndrw_results/{}".format(oper, tmp_file_name), capture_output=True, text=True, shell=True)
+        subprocess.run("taskset -c 0 sysbench fileio --threads=1 --file-total-size=8G --file-test-mode={} --time=60 run > ./fileio_rndrw_results/{}".format(oper, tmp_file_name), capture_output=True, text=True, shell=True)
         
         tmp_file_path = "./fileio_rndrw_results/{}".format(tmp_file_name)
         with open(tmp_file_path, "r") as file:
@@ -218,23 +218,28 @@ def fileio_rndrw_test():
 
         print("Test fileio_rndrw no.{} has already done..".format(i+1))
 
-    subprocess.run("sysbench fileio --threads=1 --file-total-size=1G --file-test-mode=rndrw cleanup", capture_output=True, text=True, shell=True)
+    subprocess.run("sysbench fileio --threads=1 --file-total-size=8G --file-test-mode=rndrw cleanup", capture_output=True, text=True, shell=True)
 
 
 def fileio_test():
     fileio_seqrw_test()
     fileio_rndrw_test()
 
+def test_all():
+    cpu_test()
+    mem_test()
+    fileio_test()
 
 def main():
     args = sys.argv
     if len(args) != 2:
-        print("Usage: python3 benchmark.py cpu/mem/fileio.")
+        print("Usage: python3 benchmark.py cpu/mem/fileio/all.")
         return
     test_dict = {
         "cpu": cpu_test,
         "mem": mem_test,
-        "fileio": fileio_test
+        "fileio": fileio_test,
+        "all": test_all
     }
     
     test_func = test_dict.get(args[1], None)
